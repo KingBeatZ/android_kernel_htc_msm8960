@@ -778,16 +778,35 @@ static int __devinit stmpe_irq_init(struct stmpe *stmpe)
 
 static void stmpe_irq_remove(struct stmpe *stmpe)
 {
-	int num_irqs = stmpe->variant->num_irqs;
-	int base = stmpe->irq_base;
-	int irq;
-
-	for (irq = base; irq < base + num_irqs; irq++) {
+<<<<<<< HEAD
+=======
 #ifdef CONFIG_ARM
-		set_irq_flags(irq, 0);
+		set_irq_flags(virq, 0);
 #endif
-		irq_set_chip_and_handler(irq, NULL, NULL);
-		irq_set_chip_data(irq, NULL);
+		irq_set_chip_and_handler(virq, NULL, NULL);
+		irq_set_chip_data(virq, NULL);
+}
+
+static struct irq_domain_ops stmpe_irq_ops = {
+        .map    = stmpe_irq_map,
+        .unmap  = stmpe_irq_unmap,
+        .xlate  = irq_domain_xlate_twocell,
+};
+
+static int __devinit stmpe_irq_init(struct stmpe *stmpe,
+				struct device_node *np)
+{
+	int base = 0;
+	int num_irqs = stmpe->variant->num_irqs;
+
+	if (!np)
+		base = stmpe->irq_base;
+
+	stmpe->domain = irq_domain_add_simple(np, num_irqs, base,
+					      &stmpe_irq_ops, stmpe);
+	if (!stmpe->domain) {
+		dev_err(stmpe->dev, "Failed to create irqdomain\n");
+		return -ENOSYS;
 	}
 }
 
