@@ -39,7 +39,10 @@
 //htc audio --
 
 #define WCD9310_RATES (SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_16000|\
-			SNDRV_PCM_RATE_32000|SNDRV_PCM_RATE_48000)
+			SNDRV_PCM_RATE_32000|SNDRV_PCM_RATE_48000|\
+			SNDRV_PCM_RATE_64000|SNDRV_PCM_RATE_88200|\
+			SNDRV_PCM_RATE_96000|SNDRV_PCM_RATE_176400|\
+			SNDRV_PCM_RATE_192000)
 
 #define NUM_DECIMATORS 10
 #define NUM_INTERPOLATORS 7
@@ -3145,7 +3148,7 @@ static struct snd_soc_dai_driver tabla_dai[] = {
 			.stream_name = "AIF1 Playback",
 			.rates = WCD9310_RATES,
 			.formats = TABLA_FORMATS,
-			.rate_max = 48000,
+			.rate_max = 192000,
 			.rate_min = 8000,
 			.channels_min = 1,
 			.channels_max = 2,
@@ -3176,7 +3179,7 @@ static struct snd_soc_dai_driver tabla_i2s_dai[] = {
 			.stream_name = "AIF1 Playback",
 			.rates = WCD9310_RATES,
 			.formats = TABLA_FORMATS,
-			.rate_max = 48000,
+			.rate_max = 192000,
 			.rate_min = 8000,
 			.channels_min = 1,
 			.channels_max = 4,
@@ -4941,5 +4944,5 @@ module_init(tabla_codec_init);
 module_exit(tabla_codec_exit);
 
 MODULE_DESCRIPTION("Tabla codec driver");
-MODULE_VERSION("1.0");
+MODULE_VERSION("1.1");
 MODULE_LICENSE("GPL v2");

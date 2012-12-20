@@ -23,6 +23,7 @@
 #include <sound/initval.h>
 #include <sound/jack.h>
 #include <trace/events/asoc.h>
+#include "second_rate_pps_driver.h"
 
 #include "88pm860x-codec.h"
 
@@ -981,7 +982,13 @@ static int pm860x_pcm_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S16_LE:
 		inf &= ~PCM_INF2_18WL;
 		break;
+	case SNDRV_PCM_FORMAT_S16_BE:
+		inf &= ~PCM_INF2_18WL;
+		break;
 	case SNDRV_PCM_FORMAT_S18_3LE:
+		inf |= PCM_INF2_18WL;
+		break;
+	case SNDRV_PCM_FORMAT_S18_3BE:
 		inf |= PCM_INF2_18WL;
 		break;
 	default:
@@ -1003,6 +1010,21 @@ static int pm860x_pcm_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case 48000:
 		inf = 8;
+		break;
+	case 64000:
+		inf = 10;
+		break;
+	case 88200:
+		inf = 12;
+		break;
+	case 96000:
+		inf = 14;
+		break;
+	case 176400:
+		inf = 16;
+		break;
+	case 192000:
+		inf = 18;
 		break;
 	default:
 		return -EINVAL;
@@ -1111,6 +1133,21 @@ static int pm860x_i2s_hw_params(struct snd_pcm_substream *substream,
 	case 48000:
 		inf = 8;
 		break;
+	case 64000:
+		inf = 9;
+		break;
+	case 88200:
+		inf = 10;
+		break;
+	case 96000:
+		inf = 11;
+		break;
+	case 176400:
+		inf = 12;
+		break;
+	case 192000:
+		inf = 13;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1203,7 +1240,10 @@ static struct snd_soc_dai_ops pm860x_i2s_dai_ops = {
 };
 
 #define PM860X_RATES	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |	\
-			 SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000)
+			 SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000 |	\
+			 SNDRV_PCM_RATE_64000 | SNDRV_PCM_RATE_882000 |	\
+			 SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |	\
+			 SNDRV_PCM_RATE_192000)
 
 static struct snd_soc_dai_driver pm860x_dai[] = {
 	{
@@ -1216,7 +1256,9 @@ static struct snd_soc_dai_driver pm860x_dai[] = {
 			.channels_max	= 2,
 			.rates		= PM860X_RATES,
 			.formats	= SNDRV_PCM_FORMAT_S16_LE | \
-					  SNDRV_PCM_FORMAT_S18_3LE,
+					  SNDRV_PCM_FORMAT_S16_BE | \
+					  SNDRV_PCM_FORMAT_S18_3LE | \
+					  SNDRV_PCM_FORMAT_S18_3BE,
 		},
 		.capture = {
 			.stream_name	= "PCM Capture",
@@ -1224,7 +1266,9 @@ static struct snd_soc_dai_driver pm860x_dai[] = {
 			.channels_max	= 2,
 			.rates		= PM860X_RATES,
 			.formats	= SNDRV_PCM_FORMAT_S16_LE | \
-					  SNDRV_PCM_FORMAT_S18_3LE,
+					  SNDRV_PCM_FORMAT_S16_BE | \
+					  SNDRV_PCM_FORMAT_S18_3LE | \
+					  SNDRV_PCM_FORMAT_S18_3BE,
 		},
 		.ops	= &pm860x_pcm_dai_ops,
 	}, {
@@ -1235,17 +1279,21 @@ static struct snd_soc_dai_driver pm860x_dai[] = {
 			.stream_name	= "I2S Playback",
 			.channels_min	= 2,
 			.channels_max	= 2,
-			.rates		= SNDRV_PCM_RATE_8000_48000,
+			.rates		= SNDRV_PCM_RATE_8000_192000,
 			.formats	= SNDRV_PCM_FORMAT_S16_LE | \
-					  SNDRV_PCM_FORMAT_S18_3LE,
+					  SNDRV_PCM_FORMAT_S16_BE | \
+					  SNDRV_PCM_FORMAT_S18_3LE | \
+					  SNDRV_PCM_FORMAT_S18_3BE,
 		},
 		.capture = {
 			.stream_name	= "I2S Capture",
 			.channels_min	= 2,
 			.channels_max	= 2,
-			.rates		= SNDRV_PCM_RATE_8000_48000,
+			.rates		= SNDRV_PCM_RATE_8000_192000,
 			.formats	= SNDRV_PCM_FORMAT_S16_LE | \
-					  SNDRV_PCM_FORMAT_S18_3LE,
+					  SNDRV_PCM_FORMAT_S16_BE | \
+					  SNDRV_PCM_FORMAT_S18_3LE | \
+					  SNDRV_PCM_FORMAT_S18_3BE,
 		},
 		.ops	= &pm860x_i2s_dai_ops,
 	},

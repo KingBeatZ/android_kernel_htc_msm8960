@@ -19,25 +19,19 @@
 #include <linux/wait.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/dma-mapping.h>
+#include <linux/android_pmem.h>
+#include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/control.h>
-#include <asm/dma.h>
-#include <linux/dma-mapping.h>
-#include <linux/android_pmem.h>
 
 #include "msm-pcm-q6.h"
 #include "msm-pcm-routing.h"
 
-//htc audio ++
-#undef pr_info
-#undef pr_err
-#define pr_info(fmt, ...) pr_aud_info(fmt, ##__VA_ARGS__)
-#define pr_err(fmt, ...) pr_aud_err(fmt, ##__VA_ARGS__)
-//htc audio --
 
 static struct audio_locks the_locks;
 
@@ -47,7 +41,7 @@ struct snd_msm {
 };
 
 #define PLAYBACK_NUM_PERIODS	8
-#define PLAYBACK_PERIOD_SIZE	2048
+#define PLAYBACK_PERIOD_SIZE	4032
 #define CAPTURE_NUM_PERIODS	16
 #define CAPTURE_PERIOD_SIZE	320
 
@@ -57,21 +51,10 @@ static struct snd_pcm_hardware msm_pcm_hardware_capture = {
 				SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME),
-	.formats =              SNDRV_PCM_FMTBIT_S16_LE |
-				SNDRV_PCM_FMTBIT_S16_BE |
-				SNDRV_PCM_FMTBIT_U16_LE |
-				SNDRV_PCM_FMTBIT_U16_BE |
-				SNDRV_PCM_FMTBIT_S24_LE |
-				SNDRV_PCM_FMTBIT_S24_BE |
-				SNDRV_PCM_FMTBIT_U24_LE |
-				SNDRV_PCM_FMTBIT_U24_BE |
-				SNDRV_PCM_FMTBIT_S32_LE |
-				SNDRV_PCM_FMTBIT_S32_BE |
-				SNDRV_PCM_FMTBIT_U32_LE |
-				SNDRV_PCM_FMTBIT_U32_BE,
-	.rates =                SNDRV_PCM_RATE_8000_192000,
+	.formats =              SNDRV_PCM_FMTBIT_S16_LE,
+	.rates =                SNDRV_PCM_RATE_8000_48000,
 	.rate_min =             8000,
-	.rate_max =             192000,
+	.rate_max =             48000,
 	.channels_min =         1,
 	.channels_max =         2,
 	.buffer_bytes_max =     CAPTURE_NUM_PERIODS * CAPTURE_PERIOD_SIZE,
@@ -88,23 +71,12 @@ static struct snd_pcm_hardware msm_pcm_hardware_playback = {
 				SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME),
-	.formats =              SNDRV_PCM_FMTBIT_S16_LE |
-				SNDRV_PCM_FMTBIT_S16_BE |
-				SNDRV_PCM_FMTBIT_U16_LE |
-				SNDRV_PCM_FMTBIT_U16_BE |
-				SNDRV_PCM_FMTBIT_S24_LE |
-				SNDRV_PCM_FMTBIT_S24_BE |
-				SNDRV_PCM_FMTBIT_U24_LE |
-				SNDRV_PCM_FMTBIT_U24_BE |
-				SNDRV_PCM_FMTBIT_S32_LE |
-				SNDRV_PCM_FMTBIT_S32_BE |
-				SNDRV_PCM_FMTBIT_U32_LE |
-				SNDRV_PCM_FMTBIT_U32_BE,
-	.rates =                SNDRV_PCM_RATE_8000_192000,
+	.formats =              SNDRV_PCM_FMTBIT_S16_LE,
+	.rates =                SNDRV_PCM_RATE_8000_48000,
 	.rate_min =             8000,
-	.rate_max =             192000,
+	.rate_max =             48000,
 	.channels_min =         1,
-	.channels_max =         2,
+	.channels_max =         6,
 	.buffer_bytes_max =     PLAYBACK_NUM_PERIODS * PLAYBACK_PERIOD_SIZE,
 	.period_bytes_min =	PLAYBACK_PERIOD_SIZE,
 	.period_bytes_max =     PLAYBACK_PERIOD_SIZE,
@@ -115,7 +87,7 @@ static struct snd_pcm_hardware msm_pcm_hardware_playback = {
 
 /* Conventional and unconventional sample rate supported */
 static unsigned int supported_sample_rates[] = {
-	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 64000, 88200, 96000, 176400, 192000
+	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000
 };
 
 static uint32_t in_frame_info[CAPTURE_NUM_PERIODS][2];
@@ -244,8 +216,8 @@ static int msm_pcm_playback_prepare(struct snd_pcm_substream *substream)
 	if (prtd->enabled)
 		return 0;
 
-	ret = q6asm_media_format_block_pcm(prtd->audio_client, runtime->rate,
-				runtime->channels);
+	ret = q6asm_media_format_block_multi_ch_pcm(prtd->audio_client,
+			runtime->rate, runtime->channels);
 	if (ret < 0)
 		pr_info("%s: CMD Format block failed\n", __func__);
 
@@ -343,13 +315,14 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 	prtd->audio_client = q6asm_audio_client_alloc(
 				(app_cb)event_handler, prtd);
 	if (!prtd->audio_client) {
-		pr_info("%s: Could not allocate memory\n", __func__);
+		pr_err("%s: Could not allocate memory\n", __func__);
 		kfree(prtd);
 		return -ENOMEM;
 	}
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		runtime->hw = msm_pcm_hardware_playback;
-		ret = q6asm_open_write(prtd->audio_client, FORMAT_LINEAR_PCM);
+		ret = q6asm_open_write(prtd->audio_client,
+				FORMAT_MULTI_CHANNEL_LINEAR_PCM);
 		if (ret < 0) {
 			pr_err("%s: pcm out open failed\n", __func__);
 			q6asm_audio_client_free(prtd->audio_client);
@@ -382,12 +355,12 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 				SNDRV_PCM_HW_PARAM_RATE,
 				&constraints_sample_rates);
 	if (ret < 0)
-		pr_info("snd_pcm_hw_constraint_list failed\n");
+		pr_err("snd_pcm_hw_constraint_list failed\n");
 	/* Ensure that buffer size is a multiple of period size */
 	ret = snd_pcm_hw_constraint_integer(runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
 	if (ret < 0)
-		pr_info("snd_pcm_hw_constraint_integer failed\n");
+		pr_err("snd_pcm_hw_constraint_integer failed\n");
 
 	prtd->dsp_cnt = 0;
 	runtime->private_data = prtd;
@@ -662,8 +635,7 @@ static int msm_pcm_hw_params(struct snd_pcm_substream *substream,
 			runtime->hw.period_bytes_min,
 			runtime->hw.periods_max);
 	if (ret < 0) {
-		pr_err("Audio Start: Buffer Allocation failed \
-					rc = %d\n", ret);
+		pr_err("Audio Start: Buffer Allocation failed rc = %d\n", ret);
 		return -ENOMEM;
 	}
 	buf = prtd->audio_client->port[dir].buf;
@@ -724,7 +696,7 @@ static int msm_pcm_remove(struct platform_device *pdev)
 
 static struct platform_driver msm_pcm_driver = {
 	.driver = {
-		.name = "msm-pcm-dsp",
+		.name = "msm-multi-ch-pcm-dsp",
 		.owner = THIS_MODULE,
 	},
 	.probe = msm_pcm_probe,
@@ -748,5 +720,5 @@ static void __exit msm_soc_platform_exit(void)
 }
 module_exit(msm_soc_platform_exit);
 
-MODULE_DESCRIPTION("PCM module platform driver");
+MODULE_DESCRIPTION("Multi channel PCM module platform driver");
 MODULE_LICENSE("GPL v2");

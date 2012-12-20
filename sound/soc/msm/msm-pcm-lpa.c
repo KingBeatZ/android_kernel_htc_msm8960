@@ -58,10 +58,16 @@ static struct snd_pcm_hardware msm_pcm_hardware = {
 				SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME),
-	.formats =              SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =                SNDRV_PCM_RATE_8000_48000 | SNDRV_PCM_RATE_KNOT,
+	.formats =              SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE |\
+				SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_U16_BE |\
+				SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_BE |\
+				SNDRV_PCM_FMTBIT_U24_LE | SNDRV_PCM_FMTBIT_U24_BE |\
+				SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S32_BE |\
+				SNDRV_PCM_FMTBIT_U32_LE | SNDRV_PCM_FMTBIT_U32_BE |\
+				SNDRV_PCM_FMTBIT_FLOAT64_LE | SNDRV_PCM_FMTBIT_FLOAT64_BE,
+	.rates =                SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT,
 	.rate_min =             8000,
-	.rate_max =             48000,
+	.rate_max =             192000,
 	.channels_min =         1,
 	.channels_max =         2,
 	.buffer_bytes_max =     1024 * 1024,
@@ -75,7 +81,7 @@ static struct snd_pcm_hardware msm_pcm_hardware = {
 
 /* Conventional and unconventional sample rate supported */
 static unsigned int supported_sample_rates[] = {
-	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000
+	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 64000, 88200, 96000, 176400, 192000
 };
 
 static struct snd_pcm_hw_constraint_list constraints_sample_rates = {
@@ -234,10 +240,12 @@ static int msm_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		pr_debug("SNDRV_PCM_TRIGGER_START\n");
 		q6asm_run_nowait(prtd->audio_client, 0, 0, 0);
 		atomic_set(&prtd->start, 1);
+		atomic_set(&prtd->stop, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		pr_debug("SNDRV_PCM_TRIGGER_STOP\n");
 		atomic_set(&prtd->start, 0);
+		atomic_set(&prtd->stop, 1);
 		if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
 			break;
 		break;
@@ -325,6 +333,7 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 
 	prtd->dsp_cnt = 0;
 	atomic_set(&prtd->pending_buffer, 1);
+	atomic_set(&prtd->stop, 1);
 	runtime->private_data = prtd;
 	lpa_audio.prtd = prtd;
 	lpa_set_volume(lpa_audio.volume);
@@ -368,7 +377,8 @@ static int msm_pcm_playback_close(struct snd_pcm_substream *substream)
 	To issue EOS to dsp, we need to be run state otherwise
 	EOS is not honored.
 	*/
-	if (msm_routing_check_backend_enabled(soc_prtd->dai_link->be_id)) {
+	if (msm_routing_check_backend_enabled(soc_prtd->dai_link->be_id) &&
+		(!atomic_read(&prtd->stop))) {
 		rc = q6asm_run(prtd->audio_client,0,0,0);
 		atomic_set(&prtd->pending_buffer, 0);
 		prtd->cmd_ack = 0;
@@ -389,6 +399,7 @@ static int msm_pcm_playback_close(struct snd_pcm_substream *substream)
 	q6asm_audio_client_buf_free_contiguous(dir,
 				prtd->audio_client);
 
+	atomic_set(&prtd->stop, 1);	
 	pr_info("%s\n", __func__);
 	msm_pcm_routing_dereg_phy_stream(soc_prtd->dai_link->be_id,
 		SNDRV_PCM_STREAM_PLAYBACK);
