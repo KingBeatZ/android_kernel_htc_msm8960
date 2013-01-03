@@ -18,9 +18,14 @@
 
 unsigned int __machine_arch_type;
 
+#define _LINUX_STRING_H_
+
 #include <linux/compiler.h>	/* for inline */
-#include <linux/types.h>
+#include <linux/types.h>	/* for size_t */
+#include <linux/stddef.h>	/* for NULL */
 #include <linux/linkage.h>
+#include <asm/string.h>
+
 
 static void putstr(const char *ptr);
 extern void error(char *x);
