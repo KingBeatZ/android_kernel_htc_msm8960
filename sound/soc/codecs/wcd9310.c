@@ -39,10 +39,7 @@
 //htc audio --
 
 #define WCD9310_RATES (SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_16000|\
-			SNDRV_PCM_RATE_32000|SNDRV_PCM_RATE_48000|\
-			SNDRV_PCM_RATE_64000|SNDRV_PCM_RATE_88200|\
-			SNDRV_PCM_RATE_96000|SNDRV_PCM_RATE_176400|\
-			SNDRV_PCM_RATE_192000)
+			SNDRV_PCM_RATE_32000|SNDRV_PCM_RATE_48000|SNDRV_PCM_RATE_64000|SNDRV_PCM_RATE_88200|SNDRV_PCM_RATE_96000|SNDRV_PCM_RATE_176400|SNDRV_PCM_RATE_192000)
 
 #define NUM_DECIMATORS 10
 #define NUM_INTERPOLATORS 7
@@ -551,33 +548,27 @@ static void audio_vol_ramping_func(struct work_struct *work)
 	struct tabla_priv *tabla = container_of(work, struct tabla_priv, audio_vol_ramp_work);
 	struct snd_soc_codec *codec = tabla->codec;
 
-	int vol_gain = hp_ramp_vol_gain;
-	int vol_control = hp_ramp_vol_control;
-	int level = vol_gain - vol_control;
+	int level = hp_ramp_vol_gain - hp_ramp_vol_control;
 	int i, index = level > 0 ? level: -level;
-
-	if (vol_gain == vol_control)
-		return;
 
 	for (i = 0; i < index; i++) {
 		if (level > 0) {
-			vol_control++;
+			hp_ramp_vol_control++;
 			snd_soc_update_bits(codec, TABLA_A_RX_HPH_L_GAIN, 0x0F,
-				(HPH_RX_GAIN_MAX - vol_control));
+				(HPH_RX_GAIN_MAX - hp_ramp_vol_control));
 			snd_soc_update_bits(codec, TABLA_A_RX_HPH_R_GAIN, 0x0F,
-				(HPH_RX_GAIN_MAX- vol_control));
+				(HPH_RX_GAIN_MAX- hp_ramp_vol_control));
 			usleep_range(50000, 50000);
 		} else {
-			vol_control--;
+			hp_ramp_vol_control--;
 			snd_soc_update_bits(codec, TABLA_A_RX_HPH_L_GAIN, 0x0F,
-				(HPH_RX_GAIN_MAX - vol_control));
+				(HPH_RX_GAIN_MAX - hp_ramp_vol_control));
 			snd_soc_update_bits(codec, TABLA_A_RX_HPH_R_GAIN, 0x0F,
-				(HPH_RX_GAIN_MAX- vol_control));
+				(HPH_RX_GAIN_MAX- hp_ramp_vol_control));
 			usleep_range(10000, 10000);
 		}
 	}
 
-	hp_ramp_vol_control = vol_control;
 	pr_info("%s, volume value =%d\n", __func__, hp_ramp_vol_control);
 	return;
 }
