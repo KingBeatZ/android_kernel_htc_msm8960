@@ -21,6 +21,7 @@
 #include "qdss.h"
 #include "spm.h"
 
+#ifdef CONFIG_SMP
 extern volatile int pen_release;
 
 struct msm_hotplug_device {
@@ -46,7 +47,9 @@ static inline void platform_do_lowpower(unsigned int cpu)
 {
 	/* Just enter wfi for now. TODO: Properly shut off the cpu. */
 	for (;;) {
-
+		/*
+		 * here's the WFI
+		 */
 		msm_pm_cpu_enter_lowpower(cpu);
 		if (pen_release == cpu) {
 			/*
@@ -71,6 +74,7 @@ static inline void platform_do_lowpower(unsigned int cpu)
 		pr_debug("CPU%u: spurious wakeup call\n", cpu);
 	}
 }
+#endif
 
 int platform_cpu_kill(unsigned int cpu)
 {
@@ -104,6 +108,10 @@ void platform_cpu_die(unsigned int cpu)
 	cpu_enter_lowpower();
 	platform_do_lowpower(cpu);
 
+	/*
+	 * bring this CPU back into the world of cache
+	 * coherency, and then restore interrupts
+	 */
 	pr_notice("CPU%u: %s: normal wakeup\n", cpu, __func__);
 	cpu_leave_lowpower();
 }
