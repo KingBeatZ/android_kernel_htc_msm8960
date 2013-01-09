@@ -36,6 +36,20 @@ config IOSCHED_CFQ
 
 	  Note: If BLK_CGROUP=m, then CFQ can be built only as module.
 
+config IOSCHED_SIO
+	tristate "Simple I/O scheduler"
+	default y
+	---help---
+	  Enable Simple I/O scheduler.
+
+
+config IOSCHED_VR
+	tristate "V(R) I/O scheduler"
+	default y
+	---help---
+	Requests are chosen according to SSTF with a penalty of rev_penalty
+	for switching head direction.
+
 config CFQ_GROUP_IOSCHED
 	bool "CFQ Group Scheduling support"
 	depends on IOSCHED_CFQ && BLK_CGROUP
@@ -59,6 +73,12 @@ choice
 	config DEFAULT_NOOP
 		bool "No-op"
 
+	config DEFAULT_SIO
+		bool "SIO" if IOSCHED_SIO=y
+
+	config DEFAULT_VR
+		bool "VR" if IOSCHED_VR=y
+
 endchoice
 
 config DEFAULT_IOSCHED
@@ -66,6 +86,8 @@ config DEFAULT_IOSCHED
 	default "deadline" if DEFAULT_DEADLINE
 	default "cfq" if DEFAULT_CFQ
 	default "noop" if DEFAULT_NOOP
+	default "sio" if DEFAULT_SIO
+	default "vr" if DEFAULT_VR
 
 endmenu
 
