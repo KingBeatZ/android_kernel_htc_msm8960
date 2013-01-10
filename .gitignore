@@ -32,6 +32,7 @@ modules.builtin
 *.lzo
 *.patch
 *.gcno
+*.cmd
 
 #
 # Top-level generic files
@@ -80,6 +81,13 @@ GPATH
 GRTAGS
 GSYMS
 GTAGS
+
+#specific file output
+arch/arm/boot/compressed/lib1funcs.S
+arch/arm/boot/compressed/ashldi3.S
+arch/arm/boot/compressed/piggy.gzip
+arch/arm/boot/compressed/piggy.xzkern
+arch/arm/boot/compressed/vmlinux
 
 *.orig
 *~
