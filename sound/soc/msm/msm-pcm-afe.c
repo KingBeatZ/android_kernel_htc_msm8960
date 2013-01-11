@@ -22,6 +22,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/android_pmem.h>
 #include <sound/core.h>
+#include <sound/ac97_codec.h>
+#include <sound/asound.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/pcm.h>
@@ -41,12 +43,24 @@ static struct snd_pcm_hardware msm_afe_hardware = {
 				SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_INTERLEAVED),
-	.formats =              SNDRV_PCM_FMTBIT_S16_LE,
+	.formats =              SNDRV_PCM_FMTBIT_S16_LE |
+				SNDRV_PCM_FMTBIT_S16_BE |
+				SNDRV_PCM_FMTBIT_S24_LE |
+				SNDRV_PCM_FMTBIT_S24_BE |
+				SNDRV_PCM_FMTBIT_S32_LE |
+				SNDRV_PCM_FMTBIT_S32_BE |
+				SNDRV_PCM_FMTBIT_FLOAT64_LE |
+				SNDRV_PCM_FMTBIT_FLOAT64_BE,
 	.rates =                (SNDRV_PCM_RATE_8000 |
 				SNDRV_PCM_RATE_16000 |
-				SNDRV_PCM_RATE_48000),
+				SNDRV_PCM_RATE_48000 |
+				SNDRV_PCM_RATE_64000 |
+				SNDRV_PCM_RATE_88200 |
+				SNDRV_PCM_RATE_96000 |
+				SNDRV_PCM_RATE_176400 |
+				SNDRV_PCM_RATE_192000),
 	.rate_min =             8000,
-	.rate_max =             48000,
+	.rate_max =             192000,
 	.channels_min =         1,
 	.channels_max =         2,
 	.buffer_bytes_max =     MAX_PERIOD_SIZE * 32,
@@ -293,7 +307,7 @@ static int msm_afe_capture_prepare(struct snd_pcm_substream *substream)
 
 /* Conventional and unconventional sample rate supported */
 static unsigned int supported_sample_rates[] = {
-	8000, 16000, 48000
+	8000, 16000, 48000, 64000, 88200, 96000, 176400, 192000
 };
 
 static struct snd_pcm_hw_constraint_list constraints_sample_rates = {

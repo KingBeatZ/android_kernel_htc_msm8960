@@ -21,6 +21,8 @@
 #include <linux/mfd/wcd9310/core.h>
 #include <linux/mfd/wcd9310/registers.h>
 #include <linux/mfd/wcd9310/pdata.h>
+#include <sound/ac97_codec.h>
+#include <sound/asound.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -39,7 +41,7 @@
 //htc audio --
 
 #define WCD9310_RATES (SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_16000|\
-			SNDRV_PCM_RATE_32000|SNDRV_PCM_RATE_48000)
+			SNDRV_PCM_RATE_32000|SNDRV_PCM_RATE_48000|SNDRV_PCM_RATE_64000|SNDRV_PCM_RATE_88200|SNDRV_PCM_RATE_96000|SNDRV_PCM_RATE_176400|SNDRV_PCM_RATE_192000)
 
 #define NUM_DECIMATORS 10
 #define NUM_INTERPOLATORS 7
@@ -548,33 +550,27 @@ static void audio_vol_ramping_func(struct work_struct *work)
 	struct tabla_priv *tabla = container_of(work, struct tabla_priv, audio_vol_ramp_work);
 	struct snd_soc_codec *codec = tabla->codec;
 
-	int vol_gain = hp_ramp_vol_gain;
-	int vol_control = hp_ramp_vol_control;
-	int level = vol_gain - vol_control;
+	int level = hp_ramp_vol_gain - hp_ramp_vol_control;
 	int i, index = level > 0 ? level: -level;
-
-	if (vol_gain == vol_control)
-		return;
 
 	for (i = 0; i < index; i++) {
 		if (level > 0) {
-			vol_control++;
+			hp_ramp_vol_control++;
 			snd_soc_update_bits(codec, TABLA_A_RX_HPH_L_GAIN, 0x0F,
-				(HPH_RX_GAIN_MAX - vol_control));
+				(HPH_RX_GAIN_MAX - hp_ramp_vol_control));
 			snd_soc_update_bits(codec, TABLA_A_RX_HPH_R_GAIN, 0x0F,
-				(HPH_RX_GAIN_MAX- vol_control));
+				(HPH_RX_GAIN_MAX- hp_ramp_vol_control));
 			usleep_range(50000, 50000);
 		} else {
-			vol_control--;
+			hp_ramp_vol_control--;
 			snd_soc_update_bits(codec, TABLA_A_RX_HPH_L_GAIN, 0x0F,
-				(HPH_RX_GAIN_MAX - vol_control));
+				(HPH_RX_GAIN_MAX - hp_ramp_vol_control));
 			snd_soc_update_bits(codec, TABLA_A_RX_HPH_R_GAIN, 0x0F,
-				(HPH_RX_GAIN_MAX- vol_control));
+				(HPH_RX_GAIN_MAX- hp_ramp_vol_control));
 			usleep_range(10000, 10000);
 		}
 	}
 
-	hp_ramp_vol_control = vol_control;
 	pr_info("%s, volume value =%d\n", __func__, hp_ramp_vol_control);
 	return;
 }
@@ -3028,6 +3024,25 @@ static int tabla_hw_params(struct snd_pcm_substream *substream,
 		tx_fs_rate = 0x03;
 		rx_fs_rate = 0x60;
 		break;
+	case 64000:
+		tx_fs_rate = 0x04;
+		rx_fs_rate = 0x65;
+	case 88200:
+		tx_fs_rate = 0x05;
+		rx_fs_rate = 0x65;
+		break;
+	case 96000:
+		tx_fs_rate = 0x06;
+		rx_fs_rate = 0x70;
+		break;
+	case 176400:
+		tx_fs_rate = 0x07;
+		rx_fs_rate = 0x75;
+		break;
+	case 192000:
+		tx_fs_rate = 0x08;
+		rx_fs_rate = 0x80;
+		break;
 	default:
 		pr_err("%s: Invalid sampling rate %d\n", __func__,
 				params_rate(params));
@@ -3145,7 +3160,7 @@ static struct snd_soc_dai_driver tabla_dai[] = {
 			.stream_name = "AIF1 Playback",
 			.rates = WCD9310_RATES,
 			.formats = TABLA_FORMATS,
-			.rate_max = 48000,
+			.rate_max = 192000,
 			.rate_min = 8000,
 			.channels_min = 1,
 			.channels_max = 2,
@@ -3159,7 +3174,7 @@ static struct snd_soc_dai_driver tabla_dai[] = {
 			.stream_name = "AIF1 Capture",
 			.rates = WCD9310_RATES,
 			.formats = TABLA_FORMATS,
-			.rate_max = 48000,
+			.rate_max = 192000,
 			.rate_min = 8000,
 			.channels_min = 1,
 			.channels_max = 4,
@@ -3176,7 +3191,7 @@ static struct snd_soc_dai_driver tabla_i2s_dai[] = {
 			.stream_name = "AIF1 Playback",
 			.rates = WCD9310_RATES,
 			.formats = TABLA_FORMATS,
-			.rate_max = 48000,
+			.rate_max = 192000,
 			.rate_min = 8000,
 			.channels_min = 1,
 			.channels_max = 4,
@@ -3190,7 +3205,7 @@ static struct snd_soc_dai_driver tabla_i2s_dai[] = {
 			.stream_name = "AIF1 Capture",
 			.rates = WCD9310_RATES,
 			.formats = TABLA_FORMATS,
-			.rate_max = 48000,
+			.rate_max = 192000,
 			.rate_min = 8000,
 			.channels_min = 1,
 			.channels_max = 4,

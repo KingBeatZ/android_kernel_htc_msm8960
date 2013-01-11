@@ -24,7 +24,7 @@
 
 /* Support unconventional sample rates 12000, 24000 as well */
 #define USE_RATE                \
-			(SNDRV_PCM_RATE_8000_48000 | SNDRV_PCM_RATE_KNOT)
+			(SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT)
 
 extern int copy_count;
 
@@ -71,6 +71,7 @@ struct msm_audio {
 	int close_ack;
 	int cmd_ack;
 	atomic_t start;
+	atomic_t stop;
 	atomic_t out_count;
 	atomic_t in_count;
 	atomic_t out_needed;
